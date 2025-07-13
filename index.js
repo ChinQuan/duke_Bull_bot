@@ -3,7 +3,7 @@ import fs from "fs";
 import { Connection, clusterApiUrl, Keypair, PublicKey, Transaction } from "@solana/web3.js";
 import * as splToken from "@solana/spl-token";
 import dotenv from "dotenv";
-import config from "./config.js";
+import * as config from "./config.js";
 
 dotenv.config();
 const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
