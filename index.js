@@ -13,31 +13,21 @@ import * as cfg      from "./config.js";
 
 dotenv.config();
 
-// ──────────────────────────────────────
-// 1. Inicjalizacja bota
-// ──────────────────────────────────────
+const GAME_WALLET_ADDRESS = new PublicKey("EA7ahCfdUGRDooJXFXwMvCrc4ihvdkoXWvbw7MnauT22");
+
 const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
 
-// ──────────────────────────────────────
-// 2. Inicjalizacja portfela bota
-// ──────────────────────────────────────
 const secret = Uint8Array.from(JSON.parse(process.env.PRIVATE_KEY));
 const payer  = Keypair.fromSecretKey(secret);
 const connection = new Connection(clusterApiUrl("mainnet-beta"), "confirmed");
 cfg.BACKEND_WALLET = payer.publicKey.toBase58();
 
-// ──────────────────────────────────────
-// 3. Baza użytkowników (JSON)
-// ──────────────────────────────────────
 const USERS_FILE = "./users.json";
 const users = fs.existsSync(USERS_FILE)
   ? JSON.parse(fs.readFileSync(USERS_FILE))
   : {};
 const saveUsers = () => fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
 
-// ──────────────────────────────────────
-// 4. Komendy bota
-// ──────────────────────────────────────
 bot.setMyCommands([
   { command: "start",    description: "Start the bot" },
   { command: "wallet",   description: "Set your Solana wallet address" },
@@ -46,7 +36,6 @@ bot.setMyCommands([
   { command: "withdraw", description: "Withdraw BULL tokens" },
 ]);
 
-// /start
 bot.onText(/\/start/, (msg) => {
   bot.sendMessage(
     msg.chat.id,
@@ -55,7 +44,6 @@ bot.onText(/\/start/, (msg) => {
   );
 });
 
-// /wallet <addr>
 bot.onText(/\/wallet (.+)/, (msg, match) => {
   const wallet = match[1].trim();
   if (!/^([1-9A-HJ-NP-Za-km-z]{32,44})$/.test(wallet)) {
@@ -66,21 +54,19 @@ bot.onText(/\/wallet (.+)/, (msg, match) => {
   bot.sendMessage(msg.chat.id, `✅ Wallet saved: \`${wallet}\``, { parse_mode: "Markdown" });
 });
 
-// /balance
 bot.onText(/\/balance/, (msg) => {
   const u = users[msg.from.id];
   const bal = u?.balance ?? 0;
   bot.sendMessage(msg.chat.id, `💰 Balance: *${bal} BULL*`, { parse_mode: "Markdown" });
 });
 
-// /spin
 bot.onText(/\/spin/, (msg) => {
   const u = users[msg.from.id];
   if (!u?.wallet) return bot.sendMessage(msg.chat.id, "⚠️ Set your /wallet first.");
   if (u.balance < cfg.SPIN_COST) return bot.sendMessage(msg.chat.id, "💸 Not enough balance.");
 
   u.balance -= cfg.SPIN_COST;
-  const winOptions = [0, 0, 2000, 5000, 10000];            // ~40 % szansy na wygraną
+  const winOptions = [0, 0, 2000, 5000, 10000];
   const prize = winOptions[Math.floor(Math.random() * winOptions.length)];
   if (prize > 0) {
     u.balance += prize;
@@ -91,7 +77,6 @@ bot.onText(/\/spin/, (msg) => {
   saveUsers();
 });
 
-// /withdraw
 bot.onText(/\/withdraw/, async (msg) => {
   const u = users[msg.from.id];
   if (!u?.wallet) return bot.sendMessage(msg.chat.id, "⚠️ Set your /wallet first.");
@@ -109,7 +94,7 @@ bot.onText(/\/withdraw/, async (msg) => {
         fromATA,
         toATA.address,
         payer.publicKey,
-        BigInt(u.balance) * BigInt(1e6)   // assuming 6 decimals
+        BigInt(u.balance) * BigInt(1e6)
       )
     );
     const sig = await connection.sendTransaction(tx, [payer]);
